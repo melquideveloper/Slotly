@@ -51,10 +51,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare Docker Compose
+      - name: Prepare environment
         run: |
           docker compose version
           chmod +x docker/postgres/init/01-create-app-user.sh
+          chmod +x scripts/ci/*.sh
 
       - name: Start PostgreSQL and application
         run: docker compose up --build -d
@@ -126,168 +127,14 @@ jobs:
           echo "Application failed health verification."
           exit 1
 
-      - name: Verify database roles and privileges
-        run: |
-          docker compose exec -T postgres \
-            psql -U "$POSTGRES_USER" -d "$DB_NAME" \
-            -v ON_ERROR_STOP=1 <<'SQL'
+      - name: Verify database security
+        run: scripts/ci/verify-database-security.sh
 
-          DO $$
-          BEGIN
-              IF NOT EXISTS (
-                  SELECT 1 FROM pg_roles
-                  WHERE rolname = 'slotly_app'
-                    AND rolcanlogin
-              ) THEN
-                  RAISE EXCEPTION 'Runtime role does not exist or cannot login';
-              END IF;
-
-              IF NOT EXISTS (
-                  SELECT 1 FROM pg_roles
-                  WHERE rolname = 'slotly_migrator'
-                    AND rolcanlogin
-              ) THEN
-                  RAISE EXCEPTION 'Migrator role does not exist or cannot login';
-              END IF;
-
-              IF EXISTS (
-                  SELECT 1
-                  FROM pg_roles
-                  WHERE rolname IN ('slotly_app', 'slotly_migrator')
-                    AND (
-                        rolsuper
-                        OR rolcreatedb
-                        OR rolcreaterole
-                        OR rolreplication
-                        OR rolbypassrls
-                    )
-              ) THEN
-                  RAISE EXCEPTION 'Application roles have excessive privileges';
-              END IF;
-
-              IF has_schema_privilege(
-                  'slotly_app', 'public', 'CREATE'
-              ) THEN
-                  RAISE EXCEPTION 'Runtime user must not CREATE objects';
-              END IF;
-
-              IF NOT has_schema_privilege(
-                  'slotly_app', 'public', 'USAGE'
-              ) THEN
-                  RAISE EXCEPTION 'Runtime user must have schema USAGE';
-              END IF;
-
-              IF NOT has_schema_privilege(
-                  'slotly_migrator', 'public', 'CREATE'
-              ) THEN
-                  RAISE EXCEPTION 'Migrator must have schema CREATE';
-              END IF;
-
-              IF NOT has_table_privilege(
-                  'slotly_app', 'organizations', 'SELECT'
-              )
-              OR NOT has_table_privilege(
-                  'slotly_app', 'organizations', 'INSERT'
-              )
-              OR NOT has_table_privilege(
-                  'slotly_app', 'organizations', 'UPDATE'
-              )
-              OR NOT has_table_privilege(
-                  'slotly_app', 'organizations', 'DELETE'
-              ) THEN
-                  RAISE EXCEPTION 'Runtime table privileges are incomplete';
-              END IF;
-
-              RAISE NOTICE 'Database roles and privileges validated successfully.';
-          END
-          $$;
-
-          SQL
-
-      - name: Verify Flyway migration
-        run: |
-          echo "===== VERIFYING FLYWAY MIGRATIONS ====="
-
-          docker compose exec -T postgres \
-            psql -U "$POSTGRES_USER" -d "$DB_NAME" \
-            -v ON_ERROR_STOP=1 <<'SQL'
-
-          DO $$
-          BEGIN
-              IF NOT EXISTS (
-                  SELECT 1
-                  FROM flyway_schema_history
-                  WHERE version = '1'
-                    AND success = TRUE
-              ) THEN
-                  RAISE EXCEPTION 'Flyway migration V1 was not successfully applied';
-              END IF;
-
-              IF to_regclass('public.organizations') IS NULL THEN
-                  RAISE EXCEPTION 'Organizations table does not exist';
-              END IF;
-
-              RAISE NOTICE 'Flyway migration V1 validated successfully.';
-          END
-          $$;
-
-          SELECT installed_rank, version, description, success
-          FROM flyway_schema_history
-          ORDER BY installed_rank;
-
-          SQL
+      - name: Verify Flyway migrations
+        run: scripts/ci/verify-flyway.sh
 
       - name: Verify runtime CRUD permissions
-        run: |
-          echo "===== VERIFYING RUNTIME CRUD PERMISSIONS ====="
-
-          docker compose exec -T postgres sh -ec '
-            PGPASSWORD="$DB_PASSWORD" psql \
-              -h 127.0.0.1 \
-              -U "$DB_USERNAME" \
-              -d "$DB_NAME" \
-              -v ON_ERROR_STOP=1
-          ' <<'SQL'
-
-          BEGIN;
-
-          INSERT INTO organizations (id, name, slug)
-          VALUES (
-              '00000000-0000-0000-0000-000000000001',
-              'CI Test',
-              'ci-test'
-          );
-
-          UPDATE organizations
-          SET name = 'CI Test Updated'
-          WHERE slug = 'ci-test';
-
-          DELETE FROM organizations
-          WHERE slug = 'ci-test';
-
-          ROLLBACK;
-
-          SQL
-
-          echo "Runtime CRUD permissions validated successfully."
-
-      - name: Verify runtime cannot create tables
-        run: |
-          echo "===== VERIFYING CREATE RESTRICTION ====="
-
-          if docker compose exec -T postgres sh -ec '
-            PGPASSWORD="$DB_PASSWORD" psql \
-              -h 127.0.0.1 \
-              -U "$DB_USERNAME" \
-              -d "$DB_NAME" \
-              -v ON_ERROR_STOP=1 \
-              -c "CREATE TABLE public.runtime_forbidden_test (id integer)"
-          '; then
-            echo "ERROR: Runtime user unexpectedly created a table."
-            exit 1
-          else
-            echo "SUCCESS: Runtime user cannot create tables."
-          fi
+        run: scripts/ci/verify-runtime-crud.sh
 
       - name: Cleanup
         if: always()
