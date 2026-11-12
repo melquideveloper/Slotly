@@ -1,3 +1,4 @@
+
 name: Slotly CI
 
 on:
@@ -128,13 +129,13 @@ jobs:
           exit 1
 
       - name: Verify database security
-        run: scripts/ci/verify-database-security.sh
+        run: bash scripts/ci/verify-database-security.sh
 
       - name: Verify Flyway migrations
-        run: scripts/ci/verify-flyway.sh
+        run: bash scripts/ci/verify-flyway.sh
 
       - name: Verify runtime CRUD permissions
-        run: scripts/ci/verify-runtime-crud.sh
+        run: bash scripts/ci/verify-runtime-crud.sh
 
       - name: Cleanup
         if: always()
