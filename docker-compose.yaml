@@ -5,16 +5,23 @@ services:
     container_name: slotly-postgres
     restart: unless-stopped
 
-    environment:
-      POSTGRES_DB: ${DB_NAME:-slotly}
-      POSTGRES_USER: ${DB_USERNAME:-slotly}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-slotly_dev}
-
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:5432:5432"
+      
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME não definida}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER não definida}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD não definida}
+
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME não definida}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD não definida}
+
+    # Não expõe o PostgreSQL externamente.
+    # A aplicação acessa pelo nome do serviço: postgres:5432.
 
     volumes:
       - slotly-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
 
     healthcheck:
       test:
@@ -35,9 +42,9 @@ services:
     restart: unless-stopped
 
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-slotly}
-      DB_USERNAME: ${DB_USERNAME:-slotly}
-      DB_PASSWORD: ${DB_PASSWORD:-slotly_dev}
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:?DB_NAME não definida}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME não definida}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD não definida}
 
     ports:
       - "8080:8080"
