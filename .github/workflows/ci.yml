@@ -1,4 +1,3 @@
-
 name: Slotly CI
 
 on:
@@ -75,6 +74,7 @@ jobs:
           done
 
           echo "PostgreSQL failed to start."
+          docker compose logs postgres
           exit 1
 
       - name: Wait for application health
@@ -97,6 +97,7 @@ jobs:
 
             if [ "$HTTP_CODE" = "200" ]; then
               cat /tmp/health-response.txt
+              echo
               echo "Application is healthy."
               exit 0
             fi
@@ -114,10 +115,10 @@ jobs:
           docker compose ps -a
 
           echo "===== APPLICATION LOGS ====="
-          docker compose logs --no-color --tail=200 app
+          docker compose logs --no-color --tail=200 app || true
 
           echo "===== POSTGRESQL LOGS ====="
-          docker compose logs --no-color --tail=200 postgres
+          docker compose logs --no-color --tail=200 postgres || true
 
       - name: Fail if application health check failed
         if: steps.health.outcome == 'failure'
@@ -205,25 +206,41 @@ jobs:
 
       - name: Verify Flyway migration
         run: |
-          docker compose exec -T postgres \
-            psql -U "$POSTGRES_USER" -d "$DB_NAME" \
-            -v ON_ERROR_STOP=1 \
-            -c "
-              SELECT version, description, success
-              FROM flyway_schema_history
-              ORDER BY installed_rank;
-            "
+          echo "===== VERIFYING FLYWAY MIGRATIONS ====="
 
           docker compose exec -T postgres \
             psql -U "$POSTGRES_USER" -d "$DB_NAME" \
-            -v ON_ERROR_STOP=1 \
-            -c "
-              SELECT to_regclass('public.organizations')
-              AS organizations_table;
-            "
+            -v ON_ERROR_STOP=1 <<'SQL'
+
+          DO $$
+          BEGIN
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM flyway_schema_history
+                  WHERE version = '1'
+                    AND success = TRUE
+              ) THEN
+                  RAISE EXCEPTION 'Flyway migration V1 was not successfully applied';
+              END IF;
+
+              IF to_regclass('public.organizations') IS NULL THEN
+                  RAISE EXCEPTION 'Organizations table does not exist';
+              END IF;
+
+              RAISE NOTICE 'Flyway migration V1 validated successfully.';
+          END
+          $$;
+
+          SELECT installed_rank, version, description, success
+          FROM flyway_schema_history
+          ORDER BY installed_rank;
+
+          SQL
 
       - name: Verify runtime CRUD permissions
         run: |
+          echo "===== VERIFYING RUNTIME CRUD PERMISSIONS ====="
+
           docker compose exec -T postgres sh -ec '
             PGPASSWORD="$DB_PASSWORD" psql \
               -h 127.0.0.1 \
@@ -252,8 +269,12 @@ jobs:
 
           SQL
 
+          echo "Runtime CRUD permissions validated successfully."
+
       - name: Verify runtime cannot create tables
         run: |
+          echo "===== VERIFYING CREATE RESTRICTION ====="
+
           if docker compose exec -T postgres sh -ec '
             PGPASSWORD="$DB_PASSWORD" psql \
               -h 127.0.0.1 \
