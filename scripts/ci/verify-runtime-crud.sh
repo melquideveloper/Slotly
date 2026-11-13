@@ -9,7 +9,7 @@ echo "===== RUNTIME CRUD VALIDATION ====="
 : "${DB_USERNAME:?DB_USERNAME is required}"
 : "${DB_PASSWORD:?DB_PASSWORD is required}"
 
-# Execute CRUD operations using the runtime user.
+# Execute CRUD operations using runtime user.
 # Everything runs inside a transaction and is rolled back.
 
 docker compose exec -T \
@@ -125,4 +125,39 @@ if [[ "$OUTPUT" != *"permission denied"* ]]; then
 fi
 
 echo "SUCCESS: Runtime user cannot create tables."
+
+# Verify runtime cannot read Flyway history.
+echo "===== VERIFYING FLYWAY HISTORY RESTRICTION ====="
+
+set +e
+
+OUTPUT=$(
+    docker compose exec -T \
+        -e PGPASSWORD="$DB_PASSWORD" \
+        postgres \
+        psql \
+            -h 127.0.0.1 \
+            -U "$DB_USERNAME" \
+            -d "$DB_NAME" \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT * FROM public.flyway_schema_history" \
+            2>&1
+)
+
+EXIT_CODE=$?
+
+set -e
+
+if [ "$EXIT_CODE" -eq 0 ]; then
+    echo "ERROR: Runtime user accessed Flyway history."
+    exit 1
+fi
+
+if [[ "$OUTPUT" != *"permission denied"* ]]; then
+    echo "ERROR: Unexpected Flyway access failure."
+    echo "$OUTPUT"
+    exit 1
+fi
+
+echo "SUCCESS: Runtime cannot access Flyway history."
 echo "SUCCESS: Runtime security validated."
