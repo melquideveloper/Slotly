@@ -18,7 +18,7 @@ psql \
     --set=db_name="$POSTGRES_DB" \
     --set=ON_ERROR_STOP=1 <<'SQL'
 
--- Criacao das roles
+-- Create application roles
 SELECT format(
     'CREATE ROLE %I LOGIN PASSWORD %L',
     :'app_user',
@@ -31,25 +31,25 @@ SELECT format(
     :'migrator_password'
 ) \gexec
 
--- Acesso ao banco
+-- Database access
 GRANT CONNECT ON DATABASE :"db_name" TO :"app_user";
 GRANT CONNECT ON DATABASE :"db_name" TO :"migrator_user";
 
 \connect :db_name
 
--- Permissoes do Flyway
+-- Flyway permissions
 GRANT USAGE, CREATE ON SCHEMA public TO :"migrator_user";
 
--- Permissoes da aplicacao
+-- Application permissions
 GRANT USAGE ON SCHEMA public TO :"app_user";
 
--- Permissoes padrao para tabelas futuras
+-- Default privileges for future business tables
 ALTER DEFAULT PRIVILEGES
     FOR ROLE :"migrator_user"
     IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"app_user";
 
--- Permissoes padrao para sequences futuras
+-- Default privileges for future sequences
 ALTER DEFAULT PRIVILEGES
     FOR ROLE :"migrator_user"
     IN SCHEMA public

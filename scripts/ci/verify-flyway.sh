@@ -16,6 +16,7 @@ DO $$
 DECLARE
     table_name TEXT;
 BEGIN
+
     -- Verify Flyway history table
     IF to_regclass('public.flyway_schema_history') IS NULL THEN
         RAISE EXCEPTION
@@ -34,6 +35,18 @@ BEGIN
             'Flyway migration V1 was not successfully applied';
     END IF;
 
+    -- Verify V2 migration
+    IF NOT EXISTS (
+        SELECT 1
+        FROM flyway_schema_history
+        WHERE version = '2'
+          AND success = TRUE
+          AND type = 'SQL'
+    ) THEN
+        RAISE EXCEPTION
+            'Flyway migration V2 was not successfully applied';
+    END IF;
+
     -- Verify expected application tables
     FOREACH table_name IN ARRAY ARRAY[
         'organizations',
@@ -50,6 +63,7 @@ BEGIN
 
     RAISE NOTICE
         'Flyway migrations validated successfully.';
+
 END
 $$;
 

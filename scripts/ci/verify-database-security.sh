@@ -16,6 +16,7 @@ DO $$
 DECLARE
     table_name TEXT;
 BEGIN
+
     -- Verify runtime role
     IF NOT EXISTS (
         SELECT 1
@@ -65,7 +66,7 @@ BEGIN
             'Runtime user must not CREATE objects';
     END IF;
 
-    -- Runtime user must access the schema
+    -- Runtime user must access schema
     IF NOT has_schema_privilege(
         'slotly_app',
         'public',
@@ -85,7 +86,7 @@ BEGIN
             'Migrator must have schema CREATE';
     END IF;
 
-    -- Verify CRUD permissions on all application tables
+    -- Verify CRUD permissions on business tables
     FOREACH table_name IN ARRAY ARRAY[
         'organizations',
         'users',
@@ -118,8 +119,54 @@ BEGIN
         END IF;
     END LOOP;
 
+    -- Runtime must not access Flyway history
+    IF has_table_privilege(
+        'slotly_app',
+        'public.flyway_schema_history',
+        'SELECT'
+    )
+    OR has_table_privilege(
+        'slotly_app',
+        'public.flyway_schema_history',
+        'INSERT'
+    )
+    OR has_table_privilege(
+        'slotly_app',
+        'public.flyway_schema_history',
+        'UPDATE'
+    )
+    OR has_table_privilege(
+        'slotly_app',
+        'public.flyway_schema_history',
+        'DELETE'
+    ) THEN
+        RAISE EXCEPTION
+            'Runtime user must not access Flyway history';
+    END IF;
+
+    -- Migrator must retain Flyway history permissions
+    IF NOT has_table_privilege(
+        'slotly_migrator',
+        'public.flyway_schema_history',
+        'SELECT'
+    )
+    OR NOT has_table_privilege(
+        'slotly_migrator',
+        'public.flyway_schema_history',
+        'INSERT'
+    )
+    OR NOT has_table_privilege(
+        'slotly_migrator',
+        'public.flyway_schema_history',
+        'UPDATE'
+    ) THEN
+        RAISE EXCEPTION
+            'Migrator privileges on Flyway history are incomplete';
+    END IF;
+
     RAISE NOTICE
         'Database roles and privileges validated successfully.';
+
 END
 $$;
 

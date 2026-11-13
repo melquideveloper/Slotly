@@ -50,6 +50,8 @@ services:
       SPRING_FLYWAY_USER: ${MIGRATOR_USERNAME:?MIGRATOR_USERNAME não definida}
       SPRING_FLYWAY_PASSWORD: ${MIGRATOR_PASSWORD:?MIGRATOR_PASSWORD não definida}
 
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:4200}
+
     ports:
       - "8080:8080"
 
