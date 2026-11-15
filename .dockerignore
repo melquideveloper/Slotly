@@ -1,0 +1,30 @@
+
+# Git
+.git
+.gitignore
+
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/

@@ -1,3 +1,0 @@
-DB_URL=jdbc:postgresql://localhost:5432/data_base
-DB_USERNAME=user
-DB_PASSWORD=DB_PASSWORD

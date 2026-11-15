@@ -1,2 +1,9 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Force LF only for the five CI-related files
+/.github/workflows/ci.yml text eol=lf
+/docker/postgres/init/01-create-app-user.sh text eol=lf
+/scripts/ci/verify-database-security.sh text eol=lf
+/scripts/ci/verify-flyway.sh text eol=lf
+/scripts/ci/verify-runtime-crud.sh text eol=lf

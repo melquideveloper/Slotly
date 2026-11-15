@@ -1,21 +1,45 @@
+
 package com.slotly.sapl_agendamento.controller;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class HealthControllerTest {
 
-    private final HealthController controller = new HealthController();
+    @Autowired
+    private HealthController healthController;
 
     @Test
-    void shouldReturnApplicationNameAndUpStatus() {
+    void shouldReturnUpWhenDatabaseIsAvailable() {
 
-        Map<String, String> response = controller.health();
+        ResponseEntity<Map<String, String>> response =
+                healthController.health();
 
-        assertEquals("Slotly", response.get("application"));
-        assertEquals("UP", response.get("status"));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        assertEquals(
+                "Slotly",
+                response.getBody().get("application")
+        );
+
+        assertEquals(
+                "UP",
+                response.getBody().get("status")
+        );
+
+        assertEquals(
+                "UP",
+                response.getBody().get("database")
+        );
     }
 }
