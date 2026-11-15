@@ -1,4 +1,3 @@
-
 name: Slotly CI
 
 on:
@@ -34,9 +33,8 @@ jobs:
         run: ./mvnw -B clean verify
 
   integration-postgres:
-    name: PostgreSQL Security Integration
+    name: PostgreSQL Security and Persistence Integration
     runs-on: ubuntu-latest
-
     needs: build
 
     env:
@@ -136,6 +134,10 @@ jobs:
 
       - name: Verify runtime CRUD permissions
         run: bash scripts/ci/verify-runtime-crud.sh
+
+      - name: Verify PostgreSQL data persistence
+        timeout-minutes: 5
+        run: bash scripts/ci/verify-persistence.sh
 
       - name: Cleanup
         if: always()
