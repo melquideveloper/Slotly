@@ -1,5 +1,5 @@
 
-package com.slotly.sapl_agendamento.controller;
+package com.slotly.sapl_agendamento.health;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +22,7 @@ class HealthControllerIntegrationTest {
 
     @Test
     void shouldReturnHealthyStatus() throws Exception {
+
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.application").value("Slotly"))

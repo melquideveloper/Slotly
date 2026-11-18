@@ -1,5 +1,5 @@
 
-package com.slotly.sapl_agendamento.controller;
+package com.slotly.sapl_agendamento.health;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,20 +34,9 @@ class HealthControllerPostgresIT {
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
 
-        registry.add(
-                "DB_URL",
-                postgres::getJdbcUrl
-        );
-
-        registry.add(
-                "DB_USERNAME",
-                postgres::getUsername
-        );
-
-        registry.add(
-                "DB_PASSWORD",
-                postgres::getPassword
-        );
+        registry.add("DB_URL", postgres::getJdbcUrl);
+        registry.add("DB_USERNAME", postgres::getUsername);
+        registry.add("DB_PASSWORD", postgres::getPassword);
 
         registry.add(
                 "spring.flyway.enabled",
